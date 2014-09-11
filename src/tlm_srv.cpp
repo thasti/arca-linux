@@ -1,22 +1,117 @@
-#include <iostream>
-#include <sstream>
 #include <cstdlib>
+#include <iostream>
+#include <iterator>
+#include <map>
+#include <sstream>
+#include <string>
 #include <unistd.h>
 #include <vector>
-#include "tcpacceptor.h"
-#include "mq.h"
 
-#define MQ_NAME_LENGTH 30
+#include "errors.h"
+#include "tcpacceptor.h"
+
+#define TCP_PORT	10002
+#define LOG_PREFIX	"TLM:\t"
+
+#define CHECK_ARGC(x) 	if (argv.size() != (x)+1) {retval << ECMDMALFORMED; break; }
 
 using namespace std;
 
+template <typename T>
+T stringToNumber ( const string &Text )
+{
+	stringstream ss(Text);
+	T result;
+	return ss >> result ? result : 0;
+}
+
+enum Commands {
+	resetARM = 1,
+	resetFPGA,
+	getLoad,
+	syncDisk,
+	timeUpload};
+
+static map<string, Commands> CommandMap;
+
+void initCommandMap(void)
+{
+	CommandMap["RA"] = resetARM,
+	CommandMap["RF"] = resetFPGA;
+	CommandMap["GL"] = getLoad;
+	CommandMap["SY"] = syncDisk;
+	CommandMap["TU"] = timeUpload;
+}
+
+string parse(string cmd) {
+	unsigned long time;
+	int ret;
+	double loadavg[3];
+	string command;
+
+	stringstream retval;
+	stringstream ss(cmd);
+	istream_iterator<string> begin(ss);
+	istream_iterator<string> end;
+	vector<string> argv(begin, end);
+	// empty command was sent
+	if (argv.size() == 0) {
+		retval << "NC";
+	} else {
+		switch(CommandMap[argv[0]])
+		{
+			case resetARM:
+				CHECK_ARGC(0);
+				// ARM trip watchdog
+				retval << ENOERROR;
+				break;
+			case resetFPGA:
+				CHECK_ARGC(0);
+				// FPGA reset high
+				// FPGA reset low
+				retval << ENOERROR;
+				break;
+			case getLoad:
+				CHECK_ARGC(0);
+				ret = getloadavg(loadavg, 3);
+				if (ret > 0) {
+					retval << ENOERROR << "," << loadavg[0] << "," << loadavg[1] << "," << loadavg[2];
+				} else {
+					retval << ERETURN;
+				}
+				break;
+			case syncDisk:
+				CHECK_ARGC(0);
+				ret = system("sync");
+				if (ret == 0) {
+					retval << ENOERROR;
+				} else {
+					retval << ERETURN;
+				}
+				break;
+			case timeUpload:
+				CHECK_ARGC(1);
+				command = "date --set='@" + argv[1] + "'";
+				ret = system(command.c_str());
+				if (ret != 0) {
+					retval << ERETURN;
+					break;
+				}
+				retval << ENOERROR;
+				break;
+			case 0:
+			default:
+				retval << ECMDUNKNOWN;
+		}
+	}
+	retval << endl;
+	return retval.str();
+}
+
 void usage(char *argv[]) {
-	cout << "ARCA telemetry server" << endl;
-	cout << "usage: " << argv[0] << " port mq msgs" << endl;
-	cout << "  mq:   name of the message queue, starting with a /" << endl;
-	cout << "  port: TCP port where the socket is created " << endl;
-	cout << "  size: size of one message, in bytes" << endl;
-	cout << "  msgs: number of messages to trigger packet transmission" << endl;
+	cout << "ARCA uplink telemetry server" << endl;
+	cout << "usage: " << argv[0] << " " << endl;
+	cout << "call without any arguments." << endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -24,58 +119,40 @@ int main(int argc, char *argv[]) {
 	TCPStream *stream = NULL;
 	TCPAcceptor *acceptor = NULL;
 
-	// argument parsing tokenizer
-	stringstream tokenizer;
-	int port, msg_trigger, msg_size, msg_counter=0;
-	char mq_name[MQ_NAME_LENGTH] = { 0 };
-	char *mqbuf;
-	vector<string> rxbuf;
-	string txbuf;
-
-	if (argc != 5) {
+	if (argc != 1) {
 		usage(argv);
 		return -1;
 	}
 
-	// parse command line options
-	tokenizer << argv[1] << " " << argv[2] << " " << argv[3] << " " << argv[4];
-	tokenizer >> mq_name >> port >> msg_size >> msg_trigger;
-	cout << "Name: " << mq_name << ", Port: " << port << ", Size: " << msg_size << ",  Messages: " << msg_trigger << endl;
+	initCommandMap();
 
-	MQ rxmq(mq_name, msg_size, MQ_READ);
-	mqbuf = (char *)malloc(msg_size);
-	if (mqbuf == NULL) {
-		cerr << "Could not allocate buffer" << endl;
+	acceptor = new TCPAcceptor(TCP_PORT);
+	if (acceptor->start() != 0) {
+		cerr << LOG_PREFIX "Could not start TCPAcceptor" << endl;
 		return -1;
 	}
 
-	acceptor = new TCPAcceptor(port);
-	if (acceptor->start() == 0) {
-		cout << "Initialized TLM Server, Message queue opened." << endl;
-		while(1) {
-			cout << "Waiting for connection." << endl;
-			stream = acceptor->accept();
-			cout << "Connection Accepted, sending telemetry. " << endl;
-			while (stream != NULL) {
-				if (rxmq.receiveMessage(mqbuf, 1) > 0) {
-					cout << "Message received." << endl;
-					msg_counter++;
-					rxbuf.push_back(string(mqbuf));
+	cout << LOG_PREFIX "Initialized TLM Server" << endl;
+	//while(1) {
+		cout << LOG_PREFIX "Waiting for connection." << endl;
+		stream = acceptor->accept();
+		cout << LOG_PREFIX "Connection Accepted, sending telemetry. " << endl;
+			if (stream != NULL) {
+				ssize_t len;
+				char line[256];
+				string retval;
+				const char *txstr;
+				while ((len = stream->receive(line, sizeof(line))) > 0) {
+					line[len] = 0;
+					retval = parse(line);
+					txstr = retval.c_str();
+					stream->send(txstr, retval.length());
 				}
-				if (msg_counter > msg_trigger) {
-					txbuf = "";
-					cout << "Packet transmission triggered." << endl;
-					while(!rxbuf.empty()) {
-						txbuf = txbuf + rxbuf.back() + string("\n");
-						rxbuf.pop_back();
-					}
-					stream->send(txbuf.c_str(), txbuf.size());
-					msg_counter = 0;
-				}
-			}
-
+			delete stream;
+			cout << LOG_PREFIX "Connection closed." << endl;
 		}
-	}
-	free(mqbuf);
+	//}
+	delete acceptor;
+
 	return 0;
 }
