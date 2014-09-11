@@ -1,5 +1,6 @@
 #include <cstdio>
-#include <ctime>
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -9,12 +10,15 @@
 
 #define DEST_IP		"127.0.0.1"
 #define DEST_PORT	"10000"
-#define	UART_NAME	"/dev/ttyUSB0"
+#define	UART_NAME	"/dev/ttyS1"
 #define UART_BUF_SIZE	80
 #define MODE_S_LENGTH	28
-#define DATA_PER_FILE	10000
+#define SEC_THRESH	1000
 
-#define LOG_PREFIX	"DATA:\t"
+#define LOG_PREFIX		"DATA:\t"
+#define FILENAME_PREFIX		"data/data-"
+#define FILENAME_POSTFIX	".txt"
+#define FILENAME		(string(FILENAME_PREFIX) + hwaddr + string("-") + itos(file_index) + string(FILENAME_POSTFIX)).c_str()
 
 using namespace std;
 
@@ -39,7 +43,13 @@ int main(int argc, char *argv[]) {
 	vector<string> fifo;
 	string txbuffer;
 	int msg_counter = 0, msg_trigger = 1;
-	int file_counter = 0;
+	int file_index = 0;
+	unsigned long time_start;
+	string hwaddr;
+
+	system("mkdir -p data");
+	ofstream output_file;
+	ifstream eth_file("/sys/class/net/eth0/address");
 
 	if (argc != 2) {
 		usage(argv);
@@ -59,8 +69,10 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	system("mkdir -p data");
-
+	eth_file >> hwaddr;
+	time_start = time(NULL);
+	output_file.open(FILENAME);
+	output_file << time(NULL) << endl;
 	cout << LOG_PREFIX "Data Server initalized." << endl;
 
 	while(1) {
@@ -68,7 +80,7 @@ int main(int argc, char *argv[]) {
 			read_buf[MODE_S_LENGTH] = '\0';
 			fifo.push_back(string(read_buf));
 			msg_counter++;
-			// write to open file
+			output_file << string(read_buf) << endl;
 		}
 		if (msg_counter >= msg_trigger) {
 			txbuffer = "";
@@ -80,6 +92,17 @@ int main(int argc, char *argv[]) {
 			UDPtx.send(txbuffer.c_str());
 			cout << LOG_PREFIX "UDP Packet sent." << endl;
 			msg_counter = 0;
+		}
+		/* note: when the time gets set back by much, this won't work correctly.
+		 * either set time forward or don't!
+		 */
+		if (time(NULL) - time_start > SEC_THRESH) {
+			output_file.close();
+			output_file.clear();
+			file_index++;
+			output_file.open(FILENAME);
+			output_file << time(NULL) << endl;
+			time_start = time(NULL);
 		}
 	}
 	return 0;
