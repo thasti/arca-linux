@@ -83,8 +83,8 @@ string parse(string cmd) {
 				break;
 			case resetFPGA:
 				CHECK_ARGC(0);
-				system("echo 1 > /sys/class/gpio/gpio96/value");
-				system("echo 0 > /sys/class/gpio/gpio96/value");
+				system("echo 1 > /sys/class/gpio/gpio110/value");
+				system("echo 0 > /sys/class/gpio/gpio110/value");
 				retval << ENOERROR;
 				break;
 			case getLoad:
