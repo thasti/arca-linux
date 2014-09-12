@@ -27,20 +27,24 @@ T stringToNumber ( const string &Text )
 
 enum Commands {
 	resetARM = 1,
+	shutdownARM,
 	resetFPGA,
 	getLoad,
 	syncDisk,
-	timeUpload};
+	timeUpload,
+	ping};
 
 static map<string, Commands> CommandMap;
 
 void initCommandMap(void)
 {
-	CommandMap["RA"] = resetARM,
+	CommandMap["RA"] = resetARM;
+	CommandMap["SA"] = shutdownARM;
 	CommandMap["RF"] = resetFPGA;
 	CommandMap["GL"] = getLoad;
 	CommandMap["SY"] = syncDisk;
 	CommandMap["TU"] = timeUpload;
+	CommandMap["PI"] = ping;
 }
 
 string parse(string cmd) {
@@ -64,6 +68,15 @@ string parse(string cmd) {
 				CHECK_ARGC(0);
 				// ARM trip watchdog
 				retval << ENOERROR;
+				break;
+			case shutdownARM:
+				CHECK_ARGC(0);
+				ret = system("halt");
+				if (ret == 0) {
+					retval << ENOERROR;
+				} else {
+					retval << ERETURN;
+				}
 				break;
 			case resetFPGA:
 				CHECK_ARGC(0);
@@ -97,6 +110,10 @@ string parse(string cmd) {
 					retval << ERETURN;
 					break;
 				}
+				retval << ENOERROR;
+				break;
+			case ping:
+				CHECK_ARGC(0);
 				retval << ENOERROR;
 				break;
 			case 0:
