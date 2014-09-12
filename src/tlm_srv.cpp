@@ -18,6 +18,8 @@
 
 using namespace std;
 
+ofstream file;
+
 template <typename T>
 T stringToNumber ( const string &Text )
 {
@@ -53,7 +55,6 @@ string parse(string cmd) {
 	int ret;
 	double loadavg[3];
 	string command;
-	ofstream file;
 
 	stringstream retval;
 	stringstream ss(cmd);
