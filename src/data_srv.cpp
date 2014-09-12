@@ -35,21 +35,25 @@ void usage(char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+	// UART handling
 	FILE *uart_fd;
 	char uart_buf[UART_BUF_SIZE];
 	char *read_buf = uart_buf;
 	size_t len;
 
+	// UDP packet handling
 	vector<string> fifo;
 	string txbuffer;
 	int msg_counter = 0, msg_trigger = 1;
+
+	// file handling
 	int file_index = 0;
 	unsigned long time_start;
 	string hwaddr;
-
-	system("mkdir -p data");
 	ofstream output_file;
 	ifstream eth_file("/sys/class/net/eth0/address");
+
+	system("mkdir -p data");
 
 	if (argc != 2) {
 		usage(argv);
@@ -63,12 +67,14 @@ int main(int argc, char *argv[]) {
 	UDP UDPtx(DEST_IP, DEST_PORT);
 
 	// open serial port
+	// use conventional C style because of blocking read capability
 	uart_fd = fopen(UART_NAME, "r");
 	if (uart_fd == NULL) {
 		cerr << LOG_PREFIX "Could not open UART, exiting." << endl;
 		return -1;
 	}
 
+	// init file handling
 	eth_file >> hwaddr;
 	time_start = time(NULL);
 	output_file.open(FILENAME);
@@ -76,11 +82,12 @@ int main(int argc, char *argv[]) {
 	cout << LOG_PREFIX "Data Server initalized." << endl;
 
 	while(1) {
+		// block UART read
 		if ((getline(&read_buf, &len, uart_fd)) != -1) {
 			read_buf[MODE_S_LENGTH] = '\0';
 			fifo.push_back(string(read_buf));
 			msg_counter++;
-			output_file << string(read_buf) << endl;
+			output_file << string(read_buf) << endl; // try this (double new lines?)
 		}
 		if (msg_counter >= msg_trigger) {
 			txbuffer = "";
