@@ -8,12 +8,12 @@
 
 #include "udp.h"
 
-#define DEST_IP		"127.0.0.1"
+#define DEST_IP		"172.16.18.111"
 #define DEST_PORT	"10000"
 #define	UART_NAME	"/dev/ttyS1"
 #define UART_BUF_SIZE	80
 #define MODE_S_LENGTH	28
-#define SEC_THRESH	1000
+#define SEC_THRESH	900
 
 #define LOG_PREFIX		"DATA:\t"
 #define FILENAME_PREFIX		"data/data-"

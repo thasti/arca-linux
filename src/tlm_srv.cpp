@@ -52,6 +52,7 @@ string parse(string cmd) {
 	int ret;
 	double loadavg[3];
 	string command;
+	ofstream file;
 
 	stringstream retval;
 	stringstream ss(cmd);
@@ -66,7 +67,8 @@ string parse(string cmd) {
 		{
 			case resetARM:
 				CHECK_ARGC(0);
-				// ARM trip watchdog
+				file.open("/dev/watchdog0");
+				file << "0";
 				retval << ENOERROR;
 				break;
 			case shutdownARM:
@@ -80,8 +82,8 @@ string parse(string cmd) {
 				break;
 			case resetFPGA:
 				CHECK_ARGC(0);
-				// FPGA reset high
-				// FPGA reset low
+				system("echo 1 > /sys/class/gpio/gpio96/value");
+				system("echo 0 > /sys/class/gpio/gpio96/value");
 				retval << ENOERROR;
 				break;
 			case getLoad:
@@ -150,7 +152,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	cout << LOG_PREFIX "Initialized TLM Server" << endl;
-	//while(1) {
+	while(1) {
 		cout << LOG_PREFIX "Waiting for connection." << endl;
 		stream = acceptor->accept();
 		cout << LOG_PREFIX "Connection Accepted, sending telemetry. " << endl;
@@ -168,7 +170,7 @@ int main(int argc, char *argv[]) {
 			delete stream;
 			cout << LOG_PREFIX "Connection closed." << endl;
 		}
-	//}
+	}
 	delete acceptor;
 
 	return 0;

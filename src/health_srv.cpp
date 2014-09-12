@@ -11,12 +11,12 @@
 
 #include "udp.h"
 
-#define DEST_IP		"127.0.0.1"
+#define DEST_IP		"172.16.18.111"
 #define DEST_PORT	"10001"
 #define	SENSOR_PREFIX	"/sys/class/hwmon/hwmon"
 #define SENSOR_POSTFIX	"/temp1_input"
 #define NUM_SENSORS	6
-#define SEC_THRESH	20
+#define SEC_THRESH	900
 
 #define LOG_PREFIX	"HLT:\t"
 #define FILENAME_PREFIX		"data/health-"
