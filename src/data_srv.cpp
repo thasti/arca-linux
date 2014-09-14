@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 	// init file handling
 	eth_file >> hwaddr;
 	time_start = time(NULL);
-	output_file.open(FILENAME);
+	output_file.open(FILENAME, std::ofstream::out | std::ofstream::app);
 	output_file << time(NULL) << endl;
 	cout << LOG_PREFIX "Data Server initalized." << endl;
 
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 			output_file.close();
 			output_file.clear();
 			file_index++;
-			output_file.open(FILENAME);
+			output_file.open(FILENAME, std::ofstream::out | std::ofstream::app);
 			output_file << time(NULL) << endl;
 			time_start = time(NULL);
 		}
