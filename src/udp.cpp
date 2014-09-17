@@ -32,6 +32,10 @@ UDP::UDP(const char *host, const char *port)
 	}
 }
 
+UDP::~UDP(void) {
+	freeaddrinfo(this->res);
+}
+
 int UDP::send(const char *message) {
 	int ret;
 

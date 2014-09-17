@@ -28,6 +28,7 @@ class UDP
 
 	public:
 		UDP(const char *host, const char *port);
+		~UDP(void);
 		int	send(const char *message);
 };
 
