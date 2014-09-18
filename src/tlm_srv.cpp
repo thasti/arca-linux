@@ -71,6 +71,12 @@ string parse(string cmd) {
 				CHECK_ARGC(0);
 				file.open("/dev/watchdog0");
 				file << "0";
+				ret = system("reboot");
+				if (ret == 0) {
+					retval << ENOERROR;
+				} else {
+					retval << ERETURN;
+				}
 				retval << ENOERROR;
 				break;
 			case shutdownARM:
